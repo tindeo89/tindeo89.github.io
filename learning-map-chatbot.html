@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LearnBot – AI Learning Map</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a0a0f 0%, #0f1923 50%, #0a1628 100%);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      color: #e0e0e0;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(78,205,196,0.3); border-radius: 4px; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* HEADER */
+    #header {
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(78,205,196,0.2);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .bot-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, #4ECDC4, #45B7D1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(78,205,196,0.4);
+      flex-shrink: 0;
+    }
+    .bot-name { color: #fff; font-weight: 700; font-size: 16px; }
+    .bot-status { color: #4ECDC4; font-size: 12px; }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    #progress-badge {
+      background: rgba(78,205,196,0.1);
+      border: 1px solid rgba(78,205,196,0.3);
+      border-radius: 10px; padding: 6px 12px; text-align: center;
+      display: none;
+    }
+    #progress-pct { color: #4ECDC4; font-weight: 700; font-size: 14px; }
+    #progress-label { color: #888; font-size: 10px; }
+
+    #reset-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(255,107,107,0.1);
+      border: 1px solid rgba(255,107,107,0.3);
+      color: #FF6B6B; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s, transform 0.4s;
+      flex-shrink: 0;
+    }
+    #reset-btn:hover {
+      background: rgba(255,107,107,0.25);
+      border-color: rgba(255,107,107,0.6);
+      transform: rotate(180deg);
+    }
+
+    /* MESSAGES */
+    #messages-container {
+      flex: 1; overflow-y: auto; padding: 20px 16px;
+    }
+    #messages-inner { max-width: 700px; margin: 0 auto; }
+
+    .msg-row {
+      display: flex; margin-bottom: 16px; align-items: flex-end; gap: 8px;
+      animation: fadeIn 0.25s ease;
+    }
+    .msg-row.user { justify-content: flex-end; }
+    .msg-row.bot { justify-content: flex-start; }
+
+    .msg-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #4ECDC4, #45B7D1);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .msg-content-wrap { max-width: 80%; display: flex; flex-direction: column; gap: 8px; }
+    .msg-bubble {
+      padding: 12px 16px; font-size: 14px; line-height: 1.6;
+      backdrop-filter: blur(10px);
+    }
+    .msg-bubble.user {
+      background: linear-gradient(135deg, #4ECDC4, #45B7D1);
+      border-radius: 18px 18px 4px 18px; color: #fff;
+    }
+    .msg-bubble.bot {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px 18px 18px 4px; color: #e0e0e0;
+    }
+    .msg-bubble strong { color: #4ECDC4; }
+
+    /* TYPING */
+    .typing-indicator {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px 18px 18px 4px;
+      padding: 14px 18px;
+      display: flex; gap: 6px; align-items: center;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #4ECDC4;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ROADMAP CARD */
+    .roadmap-card {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 20px;
+    }
+    .roadmap-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .roadmap-title { color: #fff; font-weight: 700; font-size: 16px; }
+    .roadmap-level { color: #4ECDC4; font-size: 13px; }
+    .weak-skills {
+      background: rgba(255,107,107,0.15); border-radius: 8px;
+      padding: 8px 12px; margin-bottom: 14px; font-size: 12px;
+    }
+    .month-card {
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+    }
+    .month-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .month-goal { color: #aaa; font-size: 11px; margin-bottom: 8px; }
+    .month-task { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
+    .month-task span { color: #ddd; font-size: 12px; }
+
+    /* MINITEST */
+    .minitest-card {
+      background: linear-gradient(135deg, #0f3443 0%, #1a1a2e 100%);
+      border: 1px solid rgba(78,205,196,0.3);
+      border-radius: 16px; padding: 20px;
+    }
+    .minitest-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .minitest-title { color: #4ECDC4; font-weight: 700; font-size: 15px; }
+    .question-block { margin-bottom: 16px; }
+    .question-text { color: #fff; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+    .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .opt-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 8px 10px;
+      color: #fff; font-size: 12px; cursor: pointer;
+      text-align: left; transition: all 0.2s; font-family: inherit;
+    }
+    .opt-btn:hover:not(:disabled) {
+      background: rgba(78,205,196,0.15);
+      border-color: rgba(78,205,196,0.5);
+    }
+    .opt-btn.selected { background: rgba(78,205,196,0.2); border-color: #4ECDC4; }
+    .opt-btn.correct { background: rgba(76,175,80,0.25); border-color: #4caf50; }
+    .opt-btn.wrong { background: rgba(244,67,54,0.25); border-color: #f44336; }
+    .submit-btn {
+      background: linear-gradient(135deg, #4ECDC4, #45B7D1);
+      border: none; border-radius: 10px; padding: 10px 24px;
+      color: #fff; font-weight: 700; font-size: 13px; cursor: pointer;
+      width: 100%; margin-top: 4px; font-family: inherit;
+      transition: opacity 0.2s;
+    }
+    .submit-btn:disabled { background: rgba(255,255,255,0.1); cursor: not-allowed; }
+    .result-box {
+      border-radius: 10px; padding: 12px; text-align: center; margin-top: 4px;
+    }
+    .result-emoji { font-size: 24px; margin-bottom: 4px; }
+    .result-score { color: #fff; font-weight: 700; }
+    .result-msg { color: #aaa; font-size: 12px; }
+
+    /* QUICK ACTIONS */
+    #quick-actions {
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 10px 16px;
+      overflow-x: auto;
+    }
+    #quick-actions-inner { max-width: 700px; margin: 0 auto; display: flex; gap: 8px; white-space: nowrap; }
+    .quick-btn {
+      background: rgba(78,205,196,0.08);
+      border: 1px solid rgba(78,205,196,0.25);
+      border-radius: 20px; padding: 6px 14px;
+      color: #9ee8e4; font-size: 12px; cursor: pointer;
+      white-space: nowrap; transition: background 0.2s; font-family: inherit;
+    }
+    .quick-btn:hover:not(:disabled) { background: rgba(78,205,196,0.18); }
+    .quick-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* INPUT */
+    #input-area {
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 16px;
+    }
+    #input-inner { max-width: 700px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+    #msg-input {
+      flex: 1;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px; padding: 12px 16px;
+      color: #fff; font-size: 14px; outline: none;
+      font-family: inherit; line-height: 1.5;
+      max-height: 100px; resize: none; overflow-y: auto;
+      transition: border-color 0.2s;
+    }
+    #msg-input:focus { border-color: rgba(78,205,196,0.5); }
+    #msg-input::placeholder { color: rgba(255,255,255,0.35); }
+    #send-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: linear-gradient(135deg, #4ECDC4, #45B7D1);
+      color: #fff; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 15px rgba(78,205,196,0.4);
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    #send-btn:disabled { background: rgba(255,255,255,0.1); box-shadow: none; cursor: not-allowed; }
+
+    /* MODAL */
+    #modal-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    #modal-overlay.show { display: flex; }
+    #modal-box {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid rgba(78,205,196,0.3);
+      border-radius: 20px; padding: 28px 24px;
+      max-width: 340px; width: 100%; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      animation: modalIn 0.2s ease;
+    }
+    .modal-icon { font-size: 40px; margin-bottom: 12px; }
+    .modal-title { color: #fff; font-weight: 700; font-size: 17px; margin-bottom: 8px; }
+    .modal-desc { color: #aaa; font-size: 13px; margin-bottom: 24px; line-height: 1.6; }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-cancel {
+      flex: 1; padding: 10px 0; border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #ccc; font-size: 14px; cursor: pointer; font-weight: 600; font-family: inherit;
+    }
+    .modal-confirm {
+      flex: 1; padding: 10px 0; border-radius: 12px;
+      background: linear-gradient(135deg, #FF6B6B, #ee5a24);
+      border: none; color: #fff; font-size: 14px; cursor: pointer;
+      font-weight: 700; font-family: inherit;
+      box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+    }
+  </style>
+</head>
+<body>
+
+<!-- RESET MODAL -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-icon">🔄</div>
+    <div class="modal-title">Bắt đầu lại từ đầu?</div>
+    <div class="modal-desc">Toàn bộ lịch sử trò chuyện sẽ bị xoá và LearnBot sẽ phân tích lại từ đầu cho bạn.</div>
+    <div class="modal-btns">
+      <button class="modal-cancel" id="modal-cancel">Huỷ</button>
+      <button class="modal-confirm" id="modal-confirm">Reset ngay</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="header-left">
+    <div class="bot-avatar">🎓</div>
+    <div>
+      <div class="bot-name">LearnBot</div>
+      <div class="bot-status">AI Learning Map • Đang hoạt động</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div id="progress-badge">
+      <div id="progress-pct">0%</div>
+      <div id="progress-label">0 bài test</div>
+    </div>
+    <button id="reset-btn" title="Bắt đầu lại từ đầu">🔄</button>
+  </div>
+</div>
+
+<!-- MESSAGES -->
+<div id="messages-container">
+  <div id="messages-inner"></div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div id="quick-actions">
+  <div id="quick-actions-inner">
+    <button class="quick-btn" data-msg="Kiểm tra trình độ tiếng Anh của mình đi">🎯 Kiểm tra trình độ</button>
+    <button class="quick-btn" data-msg="Tạo roadmap học tiếng Anh cho mình">🗺️ Tạo lộ trình học</button>
+    <button class="quick-btn" data-msg="Cho mình làm mini test đi">🧪 Mini Test</button>
+    <button class="quick-btn" data-msg="Mình đang không biết học gì tiếp, gợi ý cho mình với">💡 Mình đang bị kẹt</button>
+  </div>
+</div>
+
+<!-- INPUT -->
+<div id="input-area">
+  <div id="input-inner">
+    <textarea id="msg-input" rows="1" placeholder="Nhắn tin với LearnBot... (Enter để gửi)"></textarea>
+    <button id="send-btn">➤</button>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `Bạn là LearnBot - một AI trợ lý học tiếng Anh thân thiện và thông minh.
+
+PHONG CÁCH GIAO TIẾP:
+- Nói chuyện tự nhiên như người bạn thật sự, không cứng nhắc hay máy móc
+- Hỏi đâu biết đó — không cần hỏi loạt câu liên tục, chỉ hỏi thêm khi cần thiết
+- Trả lời ngắn gọn, đúng trọng tâm, không dài dòng không cần thiết
+- Dùng tiếng Việt tự nhiên, thêm emoji vừa phải cho thân thiện
+- Nếu người dùng chỉ nói chuyện bình thường (không hỏi về học tập), thì trả lời bình thường như bạn bè, không nhất thiết phải kéo về chủ đề học tập
+- Khi người dùng hỏi gì thì tập trung trả lời câu đó trước, rồi mới gợi ý thêm nếu phù hợp
+
+KHẢ NĂNG CHÍNH (chỉ dùng khi phù hợp):
+
+1. KIỂM TRA TRÌNH ĐỘ: Khi được yêu cầu, hỏi 5-7 câu ngắn về ngữ pháp, từ vựng, đọc hiểu. Đánh giá: Beginner/Elementary/Pre-Intermediate/Intermediate/Upper-Intermediate/Advanced.
+
+2. TẠO ROADMAP: Khi có đủ thông tin về người dùng, tạo lộ trình học 3 tháng chi tiết. Dùng format:
+<roadmap>
+{
+  "level": "tên level",
+  "weakSkills": ["kỹ năng yếu"],
+  "months": [
+    {"month": 1, "title": "Tiêu đề", "focus": "Chủ điểm", "tasks": ["task1", "task2", "task3"], "goal": "Mục tiêu"},
+    {"month": 2, "title": "Tiêu đề", "focus": "Chủ điểm", "tasks": ["task1", "task2", "task3"], "goal": "Mục tiêu"},
+    {"month": 3, "title": "Tiêu đề", "focus": "Chủ điểm", "tasks": ["task1", "task2", "task3"], "goal": "Mục tiêu"}
+  ]
+}
+</roadmap>
+
+3. MINI TEST: Khi được yêu cầu, tạo 5 câu trắc nghiệm phù hợp level. Dùng format:
+<minitest>
+{
+  "questions": [
+    {"id": 1, "q": "câu hỏi", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "A"},
+    {"id": 2, "q": "câu hỏi", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "B"},
+    {"id": 3, "q": "câu hỏi", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "C"},
+    {"id": 4, "q": "câu hỏi", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "A"},
+    {"id": 5, "q": "câu hỏi", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "D"}
+  ]
+}
+</minitest>
+
+4. TƯ VẤN & GỢI Ý: Giải thích ngữ pháp, từ vựng, gợi ý tài liệu, phương pháp học phù hợp với từng người.
+
+5. THEO DÕI & ĐỘNG VIÊN: Nhớ thông tin trong cuộc trò chuyện, động viên khi cần.
+
+LƯU Ý QUAN TRỌNG:
+- Đừng hỏi quá nhiều câu một lúc — tối đa 1-2 câu hỏi mỗi lần
+- Nếu người dùng đang chém gió bình thường thì chém gió lại, đừng luôn kéo về học tập
+- Linh hoạt và tự nhiên là trên hết`;
+
+const WELCOME_MSG = `Yo! Mình là **LearnBot** 🎓 — bạn đồng hành học tiếng Anh của bạn!\n\nMình không chỉ làm theo script đâu nha — cứ hỏi gì mình trả lời nấy, từ giải thích ngữ pháp, tạo lộ trình học, cho đến làm bài test kiểm tra trình độ 😎\n\nBạn đang cần gì? Hoặc cứ tâm sự về việc học tiếng Anh của bạn đi — mình nghe 👂`;
+
+// State
+let chatHistory = [];
+let testStats = { tests: 0, correct: 0 };
+let isLoading = false;
+
+// DOM refs
+const messagesInner = document.getElementById('messages-inner');
+const msgInput = document.getElementById('msg-input');
+const sendBtn = document.getElementById('send-btn');
+const progressBadge = document.getElementById('progress-badge');
+const progressPct = document.getElementById('progress-pct');
+const progressLabel = document.getElementById('progress-label');
+const modalOverlay = document.getElementById('modal-overlay');
+const quickBtns = document.querySelectorAll('.quick-btn');
+
+// ---- HELPERS ----
+
+function parseRoadmap(text) {
+  const m = text.match(/<roadmap>([\s\S]*?)<\/roadmap>/);
+  if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
+  return null;
+}
+
+function parseMiniTest(text) {
+  const m = text.match(/<minitest>([\s\S]*?)<\/minitest>/);
+  if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
+  return null;
+}
+
+function cleanText(text) {
+  return text
+    .replace(/<roadmap>[\s\S]*?<\/roadmap>/g, '')
+    .replace(/<minitest>[\s\S]*?<\/minitest>/g, '')
+    .trim();
+}
+
+function renderMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+function scrollBottom() {
+  setTimeout(() => {
+    messagesInner.parentElement.scrollTop = messagesInner.parentElement.scrollHeight;
+  }, 50);
+}
+
+function setLoading(val) {
+  isLoading = val;
+  sendBtn.disabled = val || !msgInput.value.trim();
+  quickBtns.forEach(b => b.disabled = val);
+  sendBtn.textContent = val ? '⏳' : '➤';
+}
+
+// ---- RENDER ----
+
+function renderRoadmap(data) {
+  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1'];
+  const icons = ['📚', '📖', '🗣️'];
+  const weakHTML = data.weakSkills?.length
+    ? `<div class="weak-skills"><span style="color:#FF6B6B;font-weight:600">⚠️ Cần cải thiện: </span><span style="color:#ffcdd2">${data.weakSkills.join(', ')}</span></div>`
+    : '';
+  const monthsHTML = (data.months || []).map((m, i) => `
+    <div class="month-card" style="border-left: 3px solid ${colors[i]}; border: 1px solid ${colors[i]}33; border-left: 3px solid ${colors[i]}">
+      <div class="month-header">
+        <span style="font-size:18px">${icons[i]}</span>
+        <span style="color:${colors[i]};font-weight:700;font-size:13px">Tháng ${m.month}</span>
+        <span style="color:#ccc;font-size:12px">— ${m.title}</span>
+      </div>
+      <div class="month-goal">🎯 ${m.goal}</div>
+      ${(m.tasks || []).map(t => `<div class="month-task"><span style="color:${colors[i]};font-size:10px;margin-top:3px">◆</span><span>${t}</span></div>`).join('')}
+    </div>`).join('');
+  return `<div class="roadmap-card">
+    <div class="roadmap-header">
+      <span style="font-size:24px">🗺️</span>
+      <div><div class="roadmap-title">Lộ trình học cá nhân</div><div class="roadmap-level">Level: ${data.level}</div></div>
+    </div>
+    ${weakHTML}
+    ${monthsHTML}
+  </div>`;
+}
+
+function renderMiniTest(data, msgId) {
+  const questionsHTML = data.questions.map((q, i) => `
+    <div class="question-block" id="q-${msgId}-${q.id}">
+      <div class="question-text">${i+1}. ${q.q}</div>
+      <div class="options-grid">
+        ${q.options.map(opt => `<button class="opt-btn" data-msgid="${msgId}" data-qid="${q.id}" data-opt="${encodeURIComponent(opt)}">${opt}</button>`).join('')}
+      </div>
+    </div>`).join('');
+  return `<div class="minitest-card" id="minitest-${msgId}">
+    <div class="minitest-header"><span style="font-size:22px">🧪</span><span class="minitest-title">Mini Test — ${data.questions.length} câu</span></div>
+    ${questionsHTML}
+    <button class="submit-btn" id="submit-${msgId}" disabled onclick="submitTest('${msgId}')">Nộp bài ✅</button>
+  </div>`;
+}
+
+// ---- APPEND MESSAGES ----
+
+let msgCounter = 0;
+
+function appendMessage(role, content) {
+  const id = 'msg-' + (++msgCounter);
+  const isUser = role === 'user';
+  const row = document.createElement('div');
+  row.className = `msg-row ${isUser ? 'user' : 'bot'}`;
+  row.id = id;
+
+  const clean = cleanText(content);
+  const roadmap = !isUser ? parseRoadmap(content) : null;
+  const minitest = !isUser ? parseMiniTest(content) : null;
+
+  let inner = '';
+  if (!isUser) inner += `<div class="msg-avatar">🎓</div>`;
+
+  let contentHTML = '';
+  if (clean) contentHTML += `<div class="msg-bubble ${isUser ? 'user' : 'bot'}">${renderMarkdown(clean)}</div>`;
+  if (roadmap) contentHTML += renderRoadmap(roadmap);
+  if (minitest) contentHTML += renderMiniTest(minitest, id);
+
+  inner += `<div class="msg-content-wrap">${contentHTML}</div>`;
+  row.innerHTML = inner;
+  messagesInner.appendChild(row);
+
+  // Bind option buttons for minitest
+  if (minitest) {
+    const answers = {};
+    const totalQ = minitest.questions.length;
+    window['answers_' + id] = answers;
+    window['minitest_data_' + id] = minitest;
+
+    row.querySelectorAll('.opt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const qid = btn.dataset.qid;
+        const opt = decodeURIComponent(btn.dataset.opt);
+        answers[qid] = opt;
+        // highlight
+        row.querySelectorAll(`.opt-btn[data-qid="${qid}"]`).forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        // enable submit if all answered
+        const submitBtn = document.getElementById('submit-' + id);
+        if (Object.keys(answers).length === totalQ) submitBtn.disabled = false;
+      });
+    });
+  }
+
+  scrollBottom();
+  return id;
+}
+
+function showTyping() {
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+  row.id = 'typing-indicator';
+  row.innerHTML = `<div class="msg-avatar">🎓</div>
+    <div class="msg-content-wrap">
+      <div class="typing-indicator">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>`;
+  messagesInner.appendChild(row);
+  scrollBottom();
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// ---- MINI TEST SUBMIT ----
+
+window.submitTest = function(msgId) {
+  const data = window['minitest_data_' + msgId];
+  const answers = window['answers_' + msgId];
+  if (!data || !answers) return;
+
+  let score = 0;
+  data.questions.forEach(q => { if (answers[q.id]?.startsWith(q.answer)) score++; });
+
+  // Disable all buttons and show correct/wrong
+  const card = document.getElementById('minitest-' + msgId);
+  card.querySelectorAll('.opt-btn').forEach(btn => {
+    btn.disabled = true;
+    const opt = decodeURIComponent(btn.dataset.opt);
+    const qid = btn.dataset.qid;
+    const q = data.questions.find(x => String(x.id) === String(qid));
+    if (opt.startsWith(q.answer)) btn.classList.add('correct');
+    else if (answers[qid] === opt) btn.classList.add('wrong');
+  });
+
+  // Replace submit btn with result
+  const submitBtn = document.getElementById('submit-' + msgId);
+  const pass = score >= data.questions.length * 0.8;
+  submitBtn.outerHTML = `<div class="result-box" style="background:${pass ? 'rgba(76,175,80,0.2)' : 'rgba(255,193,7,0.2)'};border:1px solid ${pass ? '#4caf50' : '#ffc107'}">
+    <div class="result-emoji">${pass ? '🎉' : '💪'}</div>
+    <div class="result-score">Kết quả: ${score}/${data.questions.length}</div>
+    <div class="result-msg">${pass ? 'Xuất sắc! Tiếp tục phát huy nhé!' : 'Cần luyện thêm, đừng nản nhé!'}</div>
+  </div>`;
+
+  // Update stats
+  testStats.tests++;
+  testStats.correct += score;
+  updateProgress();
+
+  // Auto send result message
+  const pct = Math.round((score / data.questions.length) * 100);
+  setTimeout(() => {
+    sendMessage(`Mình vừa làm xong mini test, đúng ${score}/${data.questions.length} câu (${pct}%). Nhận xét và gợi ý tiếp theo cho mình nhé!`);
+  }, 500);
+};
+
+// ---- PROGRESS ----
+
+function updateProgress() {
+  if (testStats.tests === 0) { progressBadge.style.display = 'none'; return; }
+  progressBadge.style.display = 'block';
+  const avg = Math.round((testStats.correct / (testStats.tests * 5)) * 100) || 0;
+  progressPct.textContent = avg + '%';
+  progressLabel.textContent = testStats.tests + ' bài test';
+}
+
+// ---- SEND ----
+
+async function sendMessage(text) {
+  if (!text || !text.trim() || isLoading) return;
+  chatHistory.push({ role: 'user', content: text });
+  appendMessage('user', text);
+  msgInput.value = '';
+  adjustTextarea();
+  setLoading(true);
+  showTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: chatHistory
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.map(c => c.text || '').join('') || 'Xin lỗi, có lỗi xảy ra.';
+    chatHistory.push({ role: 'assistant', content: reply });
+    hideTyping();
+    appendMessage('assistant', reply);
+  } catch (e) {
+    hideTyping();
+    appendMessage('assistant', '❌ Lỗi kết nối. Vui lòng thử lại!');
+  }
+  setLoading(false);
+}
+
+// ---- RESET ----
+
+function resetChat() {
+  chatHistory = [];
+  testStats = { tests: 0, correct: 0 };
+  messagesInner.innerHTML = '';
+  updateProgress();
+  msgCounter = 0;
+  appendMessage('assistant', WELCOME_MSG);
+  modalOverlay.classList.remove('show');
+}
+
+// ---- TEXTAREA AUTO RESIZE ----
+
+function adjustTextarea() {
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 100) + 'px';
+}
+
+// ---- EVENTS ----
+
+sendBtn.addEventListener('click', () => sendMessage(msgInput.value.trim()));
+
+msgInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage(msgInput.value.trim());
+  }
+});
+
+msgInput.addEventListener('input', () => {
+  adjustTextarea();
+  sendBtn.disabled = isLoading || !msgInput.value.trim();
+});
+
+quickBtns.forEach(btn => {
+  btn.addEventListener('click', () => sendMessage(btn.dataset.msg));
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  modalOverlay.classList.add('show');
+});
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  modalOverlay.classList.remove('show');
+});
+document.getElementById('modal-confirm').addEventListener('click', resetChat);
+modalOverlay.addEventListener('click', e => {
+  if (e.target === modalOverlay) modalOverlay.classList.remove('show');
+});
+
+// ---- INIT ----
+appendMessage('assistant', WELCOME_MSG);
+</script>
+</body>
+</html>
